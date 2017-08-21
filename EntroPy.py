@@ -444,11 +444,11 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
         distance_function = lambda d: 1/(1 + exp((d - 0.5)/r))
         #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
         return return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
-    elif distance_metric == 'sigmoid':
+    elif distance_metric == 'fuzzy':
         distance_function = lambda d: exp(-((d**FUZZY_N)/r))
         #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
         return return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
-    elif distance_metric in {'fuzzy','fuzzym'}:
+    elif distance_metric == 'fuzzym':
         distance_function = lambda d: exp(-((d**FUZZYM_N_LOCAL)/r)) 
         #local_fuzzym = return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
         local_fuzzym = return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
