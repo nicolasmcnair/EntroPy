@@ -426,10 +426,6 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
         return (m_count,mplusone_count)
 
     n = None
-    distance_functions = {'heaviside': lambda d: d <= r,
-                          'sigmoid':   lambda d: 1/(1 + exp((d - 0.5)/r)),
-                          'fuzzy':     lambda d: exp(-((d**n)/r)),
-                          'fuzzym':    lambda d: exp(-((d/r)**n))}
 
     seq = np.array(seq, dtype='float64')
     if normalise_seq:
@@ -438,24 +434,25 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
     if r_ratio:
         r = np.std(seq) * r
     distance_metric = distance_metric.lower()
-    distance_function = distance_functions[distance_metric]
+    distance_function = None
     return_function = _return_counts if return_counts else _return_sampen
-
     if distance_metric == 'heaviside':
+        distance_function = lambda d: d <= r
         #return return_function(_similarity_counts(_get_subseqs(m)), _similarity_counts(_get_subseqs(m + 1)))
         return return_function(_similarity_counts(m), _similarity_counts(m + 1))
-    elif distance_metric in 'sigmoid':
+    elif distance_metric == 'sigmoid':
+        distance_function = lambda d: 1/(1 + exp((d - 0.5)/r))
         #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
         return return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
-    elif distance_metric == 'fuzzy':
-        n = FUZZY_N
+    elif distance_metric == 'sigmoid':
+        distance_function = lambda d: exp(-((d**FUZZY_N)/r))
         #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
         return return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
-    elif distance_metric == 'fuzzym':
-        n = FUZZYM_N_LOCAL
+    elif distance_metric in {'fuzzy','fuzzym'}:
+        distance_function = lambda d: exp(-((d**FUZZYM_N_LOCAL)/r)) 
         #local_fuzzym = return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
         local_fuzzym = return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
-        n = FUZZYM_N_GLOBAL
+        distance_function = lambda d: exp(-((d**FUZZYM_N_GLOBAL)/r))
         #global_fuzzym =  return_function(_similarity_counts(_get_subseqs(m, 'global')), _similarity_counts(_get_subseqs(m + 1, 'global')))
         global_fuzzym = return_function(_similarity_counts(m, 'global'), _similarity_counts(m + 1, 'global'))
         return tuple(sum(x) for x in zip(local_fuzzym,global_fuzzym)) if return_counts else local_fuzzym + global_fuzzym
