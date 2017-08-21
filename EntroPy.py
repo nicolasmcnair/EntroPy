@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-from math import ceil, log
+from math import ceil, log, exp
 from itertools import product
 from random import random
 from scipy.signal import butter, filtfilt
@@ -354,7 +354,15 @@ def variation_of_information_from_sequence(seq , y_index=-1, time_window=None):
         seq_voi = [variation_of_information_from_sequence(seq[window],y_index) for window in time_window] 
     return seq_voi
 
-def sample_entropy(seq, m=2, r=0.2, r_ratio=True, tau=1, filter='Butter', weight=None):
+def estimated_entropy(seq, type='shannon', memory=float('inf'), prior=None):
+    # TO DO
+    pass
+
+def estimated_surprise(seq, type='shannon',  memory=float('inf'), prior=None):
+    # TO DO
+    pass
+
+def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_metric='Heaviside', delta=1, return_counts=False):
     """
     Calculate the sample entropy of a series of continuous data.
 
@@ -362,52 +370,154 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, tau=1, filter='Butter', weight
 
     Args:
         seq (iterable): sequence
-        m (int): matching template length
-        r (int or float): tolerance for matching
-        r_ratio (bool): whether r is as a proportion of the SD of the sequence (see Valencia et al., 2009)
-        tau (int): time delay
-        filter(None or str): type of filter to use for time_delay. Allowed values include, 'Distinct', 'Overlapping', and 'Butter'
-            If 'Distinct', the original method of averaging over non-overlapping time windows is used (see Costa et al., 2004).
-            If 'Overlapping', a moving average version of Costa\'s method is used (see Richman et al., 2004).
-            If 'Butter', a 6th-order butterworth filter is used (see Valencia et al., 2009)
+        m (int): matching template length (default = 2)
+        r (int or float): tolerance for matching (default = 0.2)
+        r_ratio (bool): whether r should be derived from the SD of the sequence or as an absolute value
+        type (str): type of distance metric to use when calculating sample entropy. Allowed values include 'Heaviside', 'Sigmoid', 'Fuzzy', and 'FuzzyM' (default = 'Sample')
+            'Sample': standard sample entropy using a Heaviside distance metric as outlined in Costa et al. (2002, 2005)
+            'Sigmoid': sample entropy using a Sigmoid local membership function [1/(1 + exp((d - 0.5)/r))] distance metric as outlined in Xie et al. (2008)
+            'Fuzzy': sample entropy using a Gaussian fuzzy local membership function [exp(-d**n/r)] distance metric as outlined in Chen et al. (2007)
+            'FuzzyM': sample entropy using a Gaussian fuzzy local and global membership function [exp(-d**n/r)] distance metric as outlined in Liu et al. (2013)
+        normalise (bool): whether to normalise the sequence first (default=True); N.B. some metrics (e.g., Sigmoid) may require normalisation
+        delta (int): step size when constructing sub-sequences (default=1); only changed when computing modified mutli-scale entropy (Wu et al., 2013)
+        return_counts (bool): return a tuple (m+1,m) of the similarity counts instead of the sample entropy (default=False); only used when calculating composite mutli-scale entropy (Wu et al., 2014)
 
     Returns:
         :float: sample entropy
     """
+    FUZZY_N = 2
+    FUZZYM_N_LOCAL = 3
+    FUZZYM_N_GLOBAL = 2
+
+    #def _get_subseqs(_m, baseline=None):
+    #    subseqs = np.array([seq[i:i + (_m * delta):delta] for i in xrange(len(seq) - (m * delta))])
+    #    if baseline is not None:
+    #        if remove_baseline == 'local':
+    #            subseqs = np.apply_along_axis(lambda x: x-np.mean(x),-1,subseqs)
+    #        elif remove_baseline == 'global':
+    #            subseqs = subseqs - np.mean(seq)
+    #    return subseqs
 
     def _max_dist(seq_i, seq_j):
         return max([abs(i - j) for i,j in zip(seq_i,seq_j)])
 
-    def _butter_lowpass(seq, cutoff_freq):
-        order = 6
-        nyq = 0.5
-        normal_cutoff = cutoff_freq / nyq
-        b,a = butter(order, normal_cutoff, 'low', analog=False)
-        return filtfilt(b, a, seq)
+    #def _similarity_counts(sub_seqs):
+    #    return sum([sum([distance_function(_max_dist(i,j)) for j_idx,j in enumerate(sub_seqs[i_idx + delta:])]) for i_idx,i in enumerate(sub_seqs)])
 
-    if tau > 1:
-        if filter.lower() == 'distinct':
-            seq = [np.mean(seq[i:i+tau]) for i in xrange(0,(len(seq) // tau) * tau, tau)]
-        if filter.lower() == 'overlapping':
-            seq = [np.mean(seq[i:i+tau]) for i in xrange(len(seq) - (tau - 1))]
-        elif filter.lower() == 'butter':
-            seq = _butter_lowpass(seq,0.5/tau)
-        else:
-            raise ValueError('Unrecognised filter specified.')
+    def _similarity_counts(_m, baseline=None):      
+        subseqs = [seq[i:i + (_m * delta):delta] for i in xrange(len(seq) - (m * delta))]
+        if baseline is not None:
+            if baseline == 'local':
+                subseqs = np.apply_along_axis(lambda x: x-np.mean(x),-1,subseqs)
+            elif baseline == 'global':
+                subseqs = subseqs - np.mean(seq)
+        return sum([sum([distance_function(_max_dist(i,j)) for j_idx,j in enumerate(subseqs[i_idx + delta:])]) for i_idx,i in enumerate(subseqs)])
 
+
+    def _return_sampen(m_count,mplusone_count):
+        try:
+            return log(m_count / mplusone_count)
+        except ValueError:
+            return float('inf')
+        except ZeroDivisionError:
+            return None
+
+    def _return_counts(m_count,mplusone_count):
+        return (m_count,mplusone_count)
+
+    n = None
+    distance_functions = {'heaviside': lambda d: d <= r,
+                          'sigmoid':   lambda d: 1/(1 + exp((d - 0.5)/r)),
+                          'fuzzy':     lambda d: exp(-((d**n)/r)),
+                          'fuzzym':    lambda d: exp(-((d/r)**n))}
+
+    seq = np.array(seq, dtype='float64')
+    if normalise_seq:
+        #seq = (seq - seq.min())/(seq.max() - seq.min())
+        seq = (seq - np.mean(seq))/np.std(seq)
     if r_ratio:
         r = np.std(seq) * r
+    distance_metric = distance_metric.lower()
+    distance_function = distance_functions[distance_metric]
+    return_function = _return_counts if return_counts else _return_sampen
 
-    def _similarity_counts(_m):        
-        sub_seqs = [seq[i:i + _m] for i in xrange(len(seq) - m)]
-        return sum([sum([_max_dist(i,j) <= r for j_idx,j in enumerate(sub_seqs[i_idx + 1:])]) for i_idx,i in enumerate(sub_seqs)])
+    if distance_metric == 'heaviside':
+        #return return_function(_similarity_counts(_get_subseqs(m)), _similarity_counts(_get_subseqs(m + 1)))
+        return return_function(_similarity_counts(m), _similarity_counts(m + 1))
+    elif distance_metric in 'sigmoid':
+        #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
+        return return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
+    elif distance_metric == 'fuzzy':
+        n = FUZZY_N
+        #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
+        return return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
+    elif distance_metric == 'fuzzym':
+        n = FUZZYM_N_LOCAL
+        #local_fuzzym = return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
+        local_fuzzym = return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
+        n = FUZZYM_N_GLOBAL
+        #global_fuzzym =  return_function(_similarity_counts(_get_subseqs(m, 'global')), _similarity_counts(_get_subseqs(m + 1, 'global')))
+        global_fuzzym = return_function(_similarity_counts(m, 'global'), _similarity_counts(m + 1, 'global'))
+        return tuple(sum(x) for x in zip(local_fuzzym,global_fuzzym)) if return_counts else local_fuzzym + global_fuzzym
+    else:
+        raise ValueError('Unrecognised distance metric specified.')
 
-    try:
-        return -log(_similarity_counts(m + 1) / _similarity_counts(m))
-    except ValueError:
-        return float('inf')
-    except ZeroDivisionError:
-        return None
+def multiscale_entropy(orig_seq, m=2, r=0.2, tau_list=[1], mse_type='MSE', r_rescale=False, **kwargs):
+    """
+    Calculate the sample entropy of a series of continuous data across a range of temporal delays.
+    
+    Args:
+        seq (iterable): sequence
+        tau_list (list of ints): list of temporal delays
+        mse_type (str): type of multiscale entropy. Allowed values include 'MSE', 'RMSE', 'MMSE', 'CMSE', and 'RCMSE' (default = 'MSE')
+            'MSE': Multi-Scale Entropy as outlined in Costa et al. (2002, 2005); a coarse-grained averaging procedure is used
+            'RMSE': Refined Multi-Scale Entropy as outlined in Valencia et al. (2009); a bidirectional 6th-order lowpass Butterworth-filter is used, and r is recaculated for each temporal delay (if r_ratio is also True)
+            'MMSE': Modified Multi-Scale Entropy as outlined in Wu et al. (2013b); a moving-average procedure is used, and a delta term equal to tau is used when calculating sample entropy
+            'CMSE': Composite Multi-Scale Entropy as outlined in Wu et al. (2013a); a composite coarse-grained/moving average procedure is used
+            'RCMSE': Refined Composite Multi-Scale Entropy as outlined in Wu et al. (2014); variation of CMSE which sums the counts over the composite window before calculating SampEn
+        r_rescale (bool): when//how to apply r ratio (default = False; N.B. setting mse_type to 'RMSE' will override this setting to True); only used if r_ratio is True
+            False: r is used as a proportion of the SD of the original sequence
+            True: r is used as a proportion of the SD of the filtered sequence (see Valencia et al., 2009)
+        kwargs: additional keyword arugments to pass onto the sample_entropy function (see sample_entropy for details)
 
-def multiscale_entropy(seq, m=2, r=None, tau_list=[1]):
-    return [sample_entropy(seq, m, r, tau) for tau in tau_list]
+    Returns:
+        :list: Sample entropy (float) for each temporal delay specified in tau_list
+    """
+    BUTERWORTH_FILTER_ORDER = 6
+
+    mse_type = mse_type.lower()
+
+    def _butter_lowpass(seq, cutoff_freq):
+        nyq = 0.5
+        normal_cutoff = cutoff_freq / nyq
+        b,a = butter(BUTERWORTH_FILTER_ORDER, normal_cutoff, 'low', analog=False)
+        return filtfilt(b, a, seq)
+
+    mse = [None] * len(tau_list)
+    kwargs.update({'return_counts':True if mse_type == 'rcmse' else False})
+    for idx,tau in enumerate(tau_list):
+        kwargs.update({'delta':tau if mse_type == 'mmse' else 1})
+
+        if tau > 1:
+            if mse_type == 'mse':
+                seq = [np.mean(orig_seq[i:i+tau]) for i in xrange(0,(len(orig_seq) // tau) * tau, tau)]
+            elif mse_type == 'mmse':
+                seq = [np.mean(orig_seq[i:i+tau]) for i in xrange(len(orig_seq) - (tau - 1))]
+            elif mse_type == 'rmse':
+                r_rescale = True
+                seq = _butter_lowpass(orig_seq, 0.5 / tau)
+            elif mse_type in {'cmse','rcmse'}:
+                pass # Deal with this below
+            else:
+                raise ValueError('Unrecognised filter specified.')
+        else:
+            seq = orig_seq[:]
+
+        if mse_type == 'cmse' and tau > 1:
+            mse[idx] = np.mean([sample_entropy([np.mean(orig_seq[i+t:i+t+tau]) for i in xrange(0,(len(orig_seq) // tau) * tau, tau)],m,r,**kwargs) for t in xrange(tau)])
+        elif mse_type == 'rcmse' and tau > 1:
+            a,b = np.mean([sample_entropy([np.mean(orig_seq[i+t:i+t+tau]) for i in xrange(0,(len(orig_seq) // tau) * tau, tau)],m,r,**kwargs) for t in xrange(tau)],axis=0)
+            mse[idx] = log(a/b)
+        else:
+            mse[idx] = sample_entropy(seq,**kwargs)
+    return mse
