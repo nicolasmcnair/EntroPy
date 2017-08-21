@@ -404,13 +404,10 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
     #def _similarity_counts(sub_seqs):
     #    return sum([sum([distance_function(_max_dist(i,j)) for j_idx,j in enumerate(sub_seqs[i_idx + delta:])]) for i_idx,i in enumerate(sub_seqs)])
 
-    def _similarity_counts(_m, baseline=None):      
+    def _similarity_counts(_m, baseline=False):      
         subseqs = [seq[i:i + (_m * delta):delta] for i in xrange(len(seq) - (m * delta))]
-        if baseline is not None:
-            if baseline == 'local':
-                subseqs = np.apply_along_axis(lambda x: x-np.mean(x),-1,subseqs)
-            elif baseline == 'global':
-                subseqs = subseqs - np.mean(seq)
+        if baseline:
+            subseqs = np.apply_along_axis(lambda x: x-np.mean(x),-1,subseqs)
         return sum([sum([distance_function(_max_dist(i,j)) for j_idx,j in enumerate(subseqs[i_idx + delta:])]) for i_idx,i in enumerate(subseqs)])
 
 
@@ -443,18 +440,18 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
     elif distance_metric == 'sigmoid':
         distance_function = lambda d: 1/(1 + exp((d - 0.5)/r))
         #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
-        return return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
+        return return_function(_similarity_counts(m, baseline=True), _similarity_counts(m + 1, baseline=True))
     elif distance_metric == 'fuzzy':
         distance_function = lambda d: exp(-((d**FUZZY_N)/r))
         #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
-        return return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
+        return return_function(_similarity_counts(m, baseline=True), _similarity_counts(m + 1, baseline=True))
     elif distance_metric == 'fuzzym':
         distance_function = lambda d: exp(-((d**FUZZYM_N_LOCAL)/r)) 
         #local_fuzzym = return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
-        local_fuzzym = return_function(_similarity_counts(m, 'local'), _similarity_counts(m + 1, 'local'))
+        local_fuzzym = return_function(_similarity_counts(m, baseline=True), _similarity_counts(m + 1, baseline=True))
         distance_function = lambda d: exp(-((d**FUZZYM_N_GLOBAL)/r))
         #global_fuzzym =  return_function(_similarity_counts(_get_subseqs(m, 'global')), _similarity_counts(_get_subseqs(m + 1, 'global')))
-        global_fuzzym = return_function(_similarity_counts(m, 'global'), _similarity_counts(m + 1, 'global'))
+        global_fuzzym = return_function(_similarity_counts(m), _similarity_counts(m + 1))
         return tuple(sum(x) for x in zip(local_fuzzym,global_fuzzym)) if return_counts else local_fuzzym + global_fuzzym
     else:
         raise ValueError('Unrecognised distance metric specified.')
