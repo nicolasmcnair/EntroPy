@@ -2,7 +2,6 @@ from __future__ import division
 import numpy as np
 from math import ceil, log, exp
 from itertools import product
-from random import random
 from scipy.signal import butter, filtfilt
 
 def _surprise(probability):
@@ -89,12 +88,12 @@ def _conditional_probabilities(seq, y_index):
 def _parse_time_window(sequence_length, time_window, subseq_length=0):
     # If negative, then we're creating cumulative subsequences using time_window as a 'memory' value
     if time_window < 0:
-        time_window = min(-time_window, sequence_length)       
-        time_window = [slice(max(idx - time_window,0),idx) for idx in xrange(subseq_length + 1, sequence_length + 1)]
+        time_window = min(-time_window, sequence_length)
+        time_window = [slice(max(idx - time_window,0),idx) for idx in range(subseq_length + 1, sequence_length + 1)]
     # Otherwise, we're breaking the sequence into non-overlapping subsequences
     elif time_window > 0:
         time_window = int(ceil(sequence_length / (1 if time_window > sequence_length else time_window)))
-        time_window = [slice(idx,idx + time_window) for idx in xrange(subseq_length, sequence_length, time_window)]
+        time_window = [slice(idx,idx + time_window) for idx in range(subseq_length, sequence_length, time_window)]
     else:
         raise ValueError("'time_windows' value must be a non-zero integer")
     return time_window
@@ -136,10 +135,10 @@ def conditional_entropy(conditional_probability_dict, joint_probability_dict):
     Args:
         joint_probability_dict (dict): {xy:probability}
             xy: x,y value
-            probability: probability of x,y            
+            probability: probability of x,y
         conditional_probability_dict (list): {xy:probability}
             xy: x|y value
-            probability: probability of x|y  
+            probability: probability of x|y
 
     Returns:
         :float: shannon entropy (bits)
@@ -156,10 +155,10 @@ def mutual_information(x_probability_dict, y_probability_dict, joint_probability
             probability: probability of x
         y_probability_dict (dict): {xy:probability}
             y: y value
-            probability: probability of y            
+            probability: probability of y
         joint_probability_dict (dict): {xy:probability}
             xy: x,y value
-            probability: probability of x,y 
+            probability: probability of x,y
 
     Returns:
         :float: mutual information (bits)
@@ -176,10 +175,10 @@ def variation_of_information(x_probability_dict, y_probability_dict, joint_proba
             probability: probability of x
         y_probability_dict (dict): {xy:probability}
             y: y value
-            probability: probability of y            
+            probability: probability of y
         joint_probability_dict (dict): {xy:probability}
             xy: x,y value
-            probability: probability of x,y 
+            probability: probability of x,y
 
     Returns:
         :float: variation of information (bits)
@@ -192,7 +191,7 @@ def shannon_entropy_from_sequence(seq, time_window=None):
 
     Args:
         seq (iterable): sequence.
-        time_window (int or list): 
+        time_window (int or list):
             A positive integer indicates the number of non-overlapping time windows to partition the sequence into; if the length of the sequence is not evenly divisible it will print a warning and the final entropy value will be on a shortened window.
             A negative integer indicates the 'memory' as the sequence is traversed; shannon entropy will be calculated at each point in the sequence including the previous time_window number of values. Set this to the length of the sequence for 'infinite' memory.
                 Values larger than the sequence length will be reduced to this.
@@ -225,7 +224,7 @@ def joint_entropy_from_sequence(seq , y_index=-1, time_window=None):
     Args:
         seq (iterable): sequence.
         y_index (int or list): relative index of y from x.
-        time_window (int or list): 
+        time_window (int or list):
             A positive integer indicates the number of non-overlapping time windows to partition the sequence into; if the length of the sequence is not evenly divisible it will print a warning and the final entropy value will be on a shortened window.
             A negative integer indicates the 'memory' as the sequence is traversed; joint entropy will be calculated on the subsequences from each point in the sequence including the previous time_window number of values. Set this to the length of the sequence for 'infinite' memory.
                 Values larger than the sequence length will be reduced to this.
@@ -246,7 +245,7 @@ def joint_entropy_from_sequence(seq , y_index=-1, time_window=None):
             time_window = _parse_time_window(len(seq), time_window, y_index)
         elif isinstance(time_window[0], int):
             time_window = [time_window]
-        seq_entropy = [joint_entropy_from_sequence(seq[window],y_index) for window in time_window] 
+        seq_entropy = [joint_entropy_from_sequence(seq[window],y_index) for window in time_window]
     return seq_entropy
 
 def conditional_entropy_from_sequence(seq , y_index=-1, time_window=None):
@@ -256,7 +255,7 @@ def conditional_entropy_from_sequence(seq , y_index=-1, time_window=None):
     Args:
         seq (iterable): sequence.
         y_index (int or list): relative index of y from x.
-        time_window (int or list): 
+        time_window (int or list):
             A positive integer indicates the number of non-overlapping time windows to partition the sequence into; if the length of the sequence is not evenly divisible it will print a warning and the final entropy value will be on a shortened window.
             A negative integer indicates the 'memory' as the sequence is traversed; joint entropy will be calculated on the subsequences from each point in the sequence including the previous time_window number of values. Set this to the length of the sequence for 'infinite' memory.
                 Values larger than the sequence length will be reduced to this.
@@ -277,7 +276,7 @@ def conditional_entropy_from_sequence(seq , y_index=-1, time_window=None):
             time_window = _parse_time_window(len(seq), time_window, y_index)
         elif isinstance(time_window[0], int):
             time_window = [time_window]
-        seq_entropy = [conditional_entropy_from_sequence(seq[window],y_index) for window in time_window] 
+        seq_entropy = [conditional_entropy_from_sequence(seq[window],y_index) for window in time_window]
     return seq_entropy
 
 def mutual_information_from_sequence(seq , y_index=-1, time_window=None):
@@ -287,7 +286,7 @@ def mutual_information_from_sequence(seq , y_index=-1, time_window=None):
     Args:
         seq (iterable): sequence.
         y_index (int or list): relative index of y from x.
-        time_window (int or list): 
+        time_window (int or list):
             A positive integer indicates the number of non-overlapping time windows to partition the sequence into; if the length of the sequence is not evenly divisible it will print a warning and the final entropy value will be on a shortened window.
             A negative integer indicates the 'memory' as the sequence is traversed; mutual information will be calculated on the subsequences from each point in the sequence including the previous time_window number of values. Set this to the length of the sequence for 'infinite' memory.
                 Values larger than the sequence length will be reduced to this.
@@ -314,7 +313,7 @@ def mutual_information_from_sequence(seq , y_index=-1, time_window=None):
             time_window = _parse_time_window(len(seq), time_window, y_index)
         elif isinstance(time_window[0], int):
             time_window = [time_window]
-        seq_mi = [mutual_information_from_sequence(seq[window],y_index) for window in time_window] 
+        seq_mi = [mutual_information_from_sequence(seq[window],y_index) for window in time_window]
     return seq_mi
 
 def variation_of_information_from_sequence(seq , y_index=-1, time_window=None):
@@ -324,7 +323,7 @@ def variation_of_information_from_sequence(seq , y_index=-1, time_window=None):
     Args:
         seq (iterable): sequence.
         y_index (int or list): relative index of y from x.
-        time_window (int or list): 
+        time_window (int or list):
             A positive integer indicates the number of non-overlapping time windows to partition the sequence into; if the length of the sequence is not evenly divisible it will print a warning and the final entropy value will be on a shortened window.
             A negative integer indicates the 'memory' as the sequence is traversed; mutual information will be calculated on the subsequences from each point in the sequence including the previous time_window number of values. Set this to the length of the sequence for 'infinite' memory.
                 Values larger than the sequence length will be reduced to this.
@@ -351,7 +350,7 @@ def variation_of_information_from_sequence(seq , y_index=-1, time_window=None):
             time_window = _parse_time_window(len(seq), time_window, y_index)
         elif isinstance(time_window[0], int):
             time_window = [time_window]
-        seq_voi = [variation_of_information_from_sequence(seq[window],y_index) for window in time_window] 
+        seq_voi = [variation_of_information_from_sequence(seq[window],y_index) for window in time_window]
     return seq_voi
 
 def estimated_entropy(seq, type='shannon', memory=float('inf'), prior=None):
@@ -404,8 +403,8 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
     #def _similarity_counts(sub_seqs):
     #    return sum([sum([distance_function(_max_dist(i,j)) for j_idx,j in enumerate(sub_seqs[i_idx + delta:])]) for i_idx,i in enumerate(sub_seqs)])
 
-    def _similarity_counts(_m, baseline=False):      
-        subseqs = [seq[i:i + (_m * delta):delta] for i in xrange(len(seq) - (m * delta))]
+    def _similarity_counts(_m, baseline=False):
+        subseqs = [seq[i:i + (_m * delta):delta] for i in range(len(seq) - (m * delta))]
         if baseline:
             subseqs = np.apply_along_axis(lambda x: x-np.mean(x),-1,subseqs)
         return sum([sum([distance_function(_max_dist(i,j)) for j_idx,j in enumerate(subseqs[i_idx + delta:])]) for i_idx,i in enumerate(subseqs)])
@@ -421,8 +420,6 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
 
     def _return_counts(m_count,mplusone_count):
         return (m_count,mplusone_count)
-
-    n = None
 
     seq = np.array(seq, dtype='float64')
     if normalise_seq:
@@ -446,7 +443,7 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
         #return return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
         return return_function(_similarity_counts(m, baseline=True), _similarity_counts(m + 1, baseline=True))
     elif distance_metric == 'fuzzym':
-        distance_function = lambda d: exp(-((d**FUZZYM_N_LOCAL)/r)) 
+        distance_function = lambda d: exp(-((d**FUZZYM_N_LOCAL)/r))
         #local_fuzzym = return_function(_similarity_counts(_get_subseqs(m, 'local')), _similarity_counts(_get_subseqs(m + 1, 'local')))
         local_fuzzym = return_function(_similarity_counts(m, baseline=True), _similarity_counts(m + 1, baseline=True))
         distance_function = lambda d: exp(-((d**FUZZYM_N_GLOBAL)/r))
@@ -459,7 +456,7 @@ def sample_entropy(seq, m=2, r=0.2, r_ratio=True, normalise_seq=True, distance_m
 def multiscale_entropy(orig_seq, m=2, r=0.2, tau_list=[1], mse_type='MSE', r_rescale=False, **kwargs):
     """
     Calculate the sample entropy of a series of continuous data across a range of temporal delays.
-    
+
     Args:
         seq (iterable): sequence
         tau_list (list of ints): list of temporal delays
@@ -469,7 +466,7 @@ def multiscale_entropy(orig_seq, m=2, r=0.2, tau_list=[1], mse_type='MSE', r_res
             'MMSE': Modified Multi-Scale Entropy as outlined in Wu et al. (2013b); a moving-average procedure is used, and a delta term equal to tau is used when calculating sample entropy
             'CMSE': Composite Multi-Scale Entropy as outlined in Wu et al. (2013a); a composite coarse-grained/moving average procedure is used
             'RCMSE': Refined Composite Multi-Scale Entropy as outlined in Wu et al. (2014); variation of CMSE which sums the counts over the composite window before calculating SampEn
-        r_rescale (bool): when//how to apply r ratio (default = False; N.B. setting mse_type to 'RMSE' will override this setting to True); only used if r_ratio is True
+        r_rescale (bool): when/how to apply r ratio (default = False; N.B. setting mse_type to 'RMSE' will override this setting to True); only used if r_ratio is True
             False: r is used as a proportion of the SD of the original sequence
             True: r is used as a proportion of the SD of the filtered sequence (see Valencia et al., 2009)
         kwargs: additional keyword arugments to pass onto the sample_entropy function (see sample_entropy for details)
@@ -487,6 +484,10 @@ def multiscale_entropy(orig_seq, m=2, r=0.2, tau_list=[1], mse_type='MSE', r_res
         b,a = butter(BUTERWORTH_FILTER_ORDER, normal_cutoff, 'low', analog=False)
         return filtfilt(b, a, seq)
 
+    if mse_type == 'rmse':
+        r_rescale = True
+    kwargs.update({'r_ratio': not r_rescale})
+
     mse = [None] * len(tau_list)
     kwargs.update({'return_counts':True if mse_type == 'rcmse' else False})
     for idx,tau in enumerate(tau_list):
@@ -494,11 +495,10 @@ def multiscale_entropy(orig_seq, m=2, r=0.2, tau_list=[1], mse_type='MSE', r_res
 
         if tau > 1:
             if mse_type == 'mse':
-                seq = [np.mean(orig_seq[i:i+tau]) for i in xrange(0,(len(orig_seq) // tau) * tau, tau)]
+                seq = [np.mean(orig_seq[i:i+tau]) for i in range(0,(len(orig_seq) // tau) * tau, tau)]
             elif mse_type == 'mmse':
-                seq = [np.mean(orig_seq[i:i+tau]) for i in xrange(len(orig_seq) - (tau - 1))]
+                seq = [np.mean(orig_seq[i:i+tau]) for i in range(len(orig_seq) - (tau - 1))]
             elif mse_type == 'rmse':
-                r_rescale = True
                 seq = _butter_lowpass(orig_seq, 0.5 / tau)
             elif mse_type in {'cmse','rcmse'}:
                 pass # Deal with this below
@@ -508,10 +508,20 @@ def multiscale_entropy(orig_seq, m=2, r=0.2, tau_list=[1], mse_type='MSE', r_res
             seq = orig_seq[:]
 
         if mse_type == 'cmse' and tau > 1:
-            mse[idx] = np.mean([sample_entropy([np.mean(orig_seq[i+t:i+t+tau]) for i in xrange(0,(len(orig_seq) // tau) * tau, tau)],m,r,**kwargs) for t in xrange(tau)])
+            for t in range(tau):
+                seq = [np.mean(orig_seq[i+t:i+t+tau]) for i in range(0,(len(orig_seq) // tau) * tau, tau)]
+                if r_rescale:
+                    r = np.std(seq) * r
+                mse[idx] = np.mean([sample_entropy(seq,m,r,**kwargs) for t in range(tau)])
         elif mse_type == 'rcmse' and tau > 1:
-            a,b = np.mean([sample_entropy([np.mean(orig_seq[i+t:i+t+tau]) for i in xrange(0,(len(orig_seq) // tau) * tau, tau)],m,r,**kwargs) for t in xrange(tau)],axis=0)
-            mse[idx] = log(a/b)
+            for t in range(tau):
+                seq = [np.mean(orig_seq[i+t:i+t+tau]) for i in range(0,(len(orig_seq) // tau) * tau, tau)]
+                if r_rescale:
+                    r = np.std(seq) * r
+                a,b = np.mean([sample_entropy(seq,m,r,**kwargs) for t in range(tau)],axis=0)
+                mse[idx] = log(a/b)
         else:
-            mse[idx] = sample_entropy(seq,**kwargs)
+            if r_rescale:
+                r = np.std(seq) * r
+            mse[idx] = sample_entropy(seq,m,r,**kwargs)
     return mse
