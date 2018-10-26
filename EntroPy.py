@@ -486,7 +486,7 @@ def multiscale_entropy(orig_seq, m=2, r=0.2, tau_list=[1], mse_type='MSE', r_res
 
     if mse_type == 'rmse':
         r_rescale = True
-    kwargs.update({'r_ratio': not r_rescale})
+    r_ratio = kwargs.get('r_ratio', True)
 
     mse = [None] * len(tau_list)
     kwargs.update({'return_counts':True if mse_type == 'rcmse' else False})
@@ -510,18 +510,18 @@ def multiscale_entropy(orig_seq, m=2, r=0.2, tau_list=[1], mse_type='MSE', r_res
         if mse_type == 'cmse' and tau > 1:
             for t in range(tau):
                 seq = [np.mean(orig_seq[i+t:i+t+tau]) for i in range(0,(len(orig_seq) // tau) * tau, tau)]
-                if r_rescale:
+                if r_rescale and r_ratio:
                     r = np.std(seq) * r
                 mse[idx] = np.mean([sample_entropy(seq,m,r,**kwargs) for t in range(tau)])
         elif mse_type == 'rcmse' and tau > 1:
             for t in range(tau):
                 seq = [np.mean(orig_seq[i+t:i+t+tau]) for i in range(0,(len(orig_seq) // tau) * tau, tau)]
-                if r_rescale:
+                if r_rescale and r_ratio:
                     r = np.std(seq) * r
                 a,b = np.mean([sample_entropy(seq,m,r,**kwargs) for t in range(tau)],axis=0)
                 mse[idx] = log(a/b)
         else:
-            if r_rescale:
+            if r_rescale and r_ratio:
                 r = np.std(seq) * r
             mse[idx] = sample_entropy(seq,m,r,**kwargs)
     return mse
