@@ -4,7 +4,7 @@ from math import ceil, log, exp
 from itertools import product
 from scipy.signal import butter, filtfilt
 
-def _surprise(probability):
+def surprise(probability):
     """Returns surprise value for given probability"""
     return log(1/probability,2)
 
@@ -52,7 +52,7 @@ def _joint_probabilities(seq, y_index):
     # Get x,y keys
     xys = tuple(product(np.unique(x_values),tuple(product(*[set(y) for y in y_values]))))
     # Get x,y sequences
-    xy_seq = zip(x_values,*y_values)
+    xy_seq = list(zip(x_values,*y_values))
     # Return dict of x,y keys and their probability of occurence in the sequence
     return dict([((x,y),xy_seq.count((x,) + y)/len(xy_seq)) for x,y in xys])
 
@@ -81,9 +81,9 @@ def _conditional_probabilities(seq, y_index):
     # Get x|y keys
     xys = tuple(product(np.unique(x_values),tuple(product(*[set(y) for y in y_values]))))
     # Get x|y sequences
-    xy_seq = zip(x_values,*y_values)
+    xy_seq = list(zip(x_values,*y_values))
     # Return dict of x|y keys and their probability of occurence in the sequence
-    return dict([((x,y),xy_seq.count((x,) + y)/zip(*y_values).count(y)) if zip(*y_values).count(y) else ((x,y),0.0) for x,y in xys])
+    return dict([((x,y),xy_seq.count((x,) + y)/list(zip(*y_values)).count(y)) if list(zip(*y_values)).count(y) else ((x,y),0.0) for x,y in xys])
 
 def _parse_time_window(sequence_length, time_window, subseq_length=0):
     # If negative, then we're creating cumulative subsequences using time_window as a 'memory' value
